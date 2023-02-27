@@ -3,11 +3,12 @@ import numpy as np
 import copy
 
 
-cap = cv2.VideoCapture('video/test01.mp4')
+cap = cv2.VideoCapture('./video/1.mp4')
 ret, img = cap.read()
 # img = cv2.resize(img, (640, 360))
 # img = img[100:, :]
 previmg = img    #第一帧
+print(previmg)
 previmg = cv2.cvtColor(previmg, cv2.COLOR_BGR2GRAY)
 previmg = cv2.GaussianBlur(previmg, (3, 3), 0)
 height, width = img.shape[:2]
