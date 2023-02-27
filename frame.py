@@ -5,7 +5,7 @@ import another
 
 
 '''设定参数'''
-bounding_top = 170        #检测区域的上边界
+bounding_top = 250        #检测区域的上边界
 bounding_bottom = 380     #检测区域的下边界
 distance_thresh = 60.0    #在这个距离以内的中心点被认为是同一辆车
 valid_thresh = 10         #持续15帧以上的才计入车
@@ -25,7 +25,8 @@ car_cal = [0];      #统计实际有效车数
 
 
 '''开始运行'''
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture('./video/02.mp4')
+# cap = cv2.VideoCapture(0)
 ret, img = cap.read()
 # img = cv2.resize(img, (640, 360))
 # img = img[100:, :]
@@ -43,13 +44,14 @@ height, width = img.shape[:2]
 
 while cap.isOpened():
     ret, img = cap.read()
-    # img = cv2.resize(img, (640, 360))
-    # img = img[100:, :]
-    nextimg = img
-    nextimg = cv2.cvtColor(nextimg, cv2.COLOR_BGR2GRAY)
-    nextimg = cv2.GaussianBlur(nextimg, (3, 3), 0)
 
     if ret:
+        # img = cv2.resize(img, (640, 360))
+        # img = img[100:, :]
+        nextimg = img
+        nextimg = cv2.cvtColor(nextimg, cv2.COLOR_BGR2GRAY)
+        nextimg = cv2.GaussianBlur(nextimg, (3, 3), 0)
+    
         '''帧差法'''
         diff = cv2.absdiff(previmg, nextimg)
         diff[:150, :] = 0
@@ -82,12 +84,10 @@ while cap.isOpened():
 
         '''矩形框'''
         another.record_cars(result, img, bounding_top, num, going, rect_all, distance_thresh, 
-                            begin_place, way, color_all, valid, color_bound, pic_out)
+                            begin_place, way, color_all, valid, color_bound, pic_out, valid_thresh, car_cal)
         see = another.find_rec(img, num, valid, valid_thresh, going, rect_all, color_bound)
-        another.cout_csv(num, valid, valid_thresh, way, rect_all, begin_place)
 
         # out_result.write(img)
-
         cv2.imshow('video', diff)
         cv2.imshow('origin', img)
         cv2.imshow('process', process)
@@ -99,5 +99,6 @@ while cap.isOpened():
             break
     else:
         break
+another.cout_csv(num, valid, valid_thresh, way, rect_all, begin_place)
 cv2.destroyAllWindows()
 cap.release()

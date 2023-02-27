@@ -1,6 +1,7 @@
 import cv2
 import math
 import random
+import csv
 
 
 def cal_grad(srcGray, thresh_th):
@@ -23,10 +24,14 @@ def is_inside(rect1, rect2):
 
 def getCenterPoint(rect):
     cpt = ()
-    cpt_x = rect.x + round(rect.width/2.0)
-    cpt_y = rect.y + round(rect.height/2.0)
+    cpt_x = rect[0] + round(rect[2]/2.0)
+    cpt_y = rect[1] + round(rect[3]/2.0)
     cpt = (cpt_x, cpt_y)
     return cpt
+
+
+def getarea(rect):
+    return rect[2] * rect[3]
 
 
 def getDistance(pointO, pointA):
@@ -38,20 +43,21 @@ def find_rec(frame, num, valid, valid_thresh, going, rect_all, color_bound):
     drawing = frame.copy()
     for i in range(num[0]):
         if(valid[i] > valid_thresh and going[i] > 0):
-            cv2.rectangle(drawing, rect_all[i].tl(), rect_all[i].br(), color_bound[i], 2, 8, 0)
+            cv2.rectangle(drawing, (rect_all[i][0], rect_all[i][1]), (rect_all[i][0] + rect_all[i][2], 
+                                    rect_all[i][1] + rect_all[i][3]), color_bound[i], 2, 8, 0)
     return drawing
 
 
 def saveColor(frame, valid, pic_out, rect_all, valid_thresh, num, car_cal):
     for i in range(num[0]):
         destiny = "./saved/"
-        count = str(car_cal)
+        count = str(car_cal[0])
         destiny_back = ".jpg"
 
         destiny += count
         destiny += destiny_back
 
-        if valid[i] == valid_thresh and pic_out[i] < 1:
+        if valid[i] >= valid_thresh and pic_out[i] < 1 and getarea(rect_all[i]) > 2000:
             clone_one = frame[rect_all[i][1]:rect_all[i][1]+rect_all[i][3], rect_all[i][0]:rect_all[i][0]+rect_all[i][2]]
             cv2.imwrite(destiny, clone_one)
 
@@ -64,17 +70,17 @@ def saveColor(frame, valid, pic_out, rect_all, valid_thresh, num, car_cal):
 def judgeArea(i, way, rect_all, begin_place):
     if way[i] < 1:
         # 下行看结束大小
-        if rect_all[i].area() > 30000:
+        if getarea(rect_all[i]) > 30000:
             return 2 # 大型车
-        elif rect_all[i].area() > 7000:
+        elif getarea(rect_all[i]) > 7000:
             return 1 # 中型车
         else:
             return 0 # 小型车
     else:
         # 上行看初始大小
-        if begin_place[i].area() > 30000:
+        if getarea(begin_place[i]) > 30000:
             return 2 # 大型车
-        elif begin_place[i].area() > 7000:
+        elif getarea(begin_place[i]) > 7000:
             return 1 # 中型车
         else:
             return 0 # 小型车
@@ -82,8 +88,8 @@ def judgeArea(i, way, rect_all, begin_place):
 
 def read_color(place):
     color_five = [0, 0, 0, 0, 0]
-    
-    destiny = "../saved/"
+
+    destiny = "./saved/"
     count = str(place)
     destiny_back = ".jpg"
     destiny += count
@@ -128,49 +134,46 @@ def cout_csv(num, valid, valid_thresh, way, rect_all, begin_place):
     csv_cal = 0
 
     # 打开输出文件
-    p = open("../saved/output.csv", "w")
+    with open("./saved/output.csv", "w", newline='') as csvfile:
+        p = csv.writer(csvfile)
 
-    # 写入表头
-    p.write("序号,车型,方向,颜色\n")
+        # 写入表头
+        p.writerow(["序号","车型","方向","颜色"])
 
-    # 遍历车辆并输出
-    for i in range(num[0]):
-        if valid[i] < valid_thresh:
-            continue
+        # 遍历车辆并输出
+        for i in range(num[0]):
+            if valid[i] < valid_thresh:
+                continue
 
-        count = str(csv_cal)
-        p.write(count + ",")
+            count = str(csv_cal)
 
-        if judgeArea(i, way, rect_all, begin_place) == 0:
-            p.write("小型车,")
-        elif judgeArea(i, way, rect_all, begin_place) == 1:
-            p.write("中型车,")
-        else:
-            p.write("大型车,")
+            if judgeArea(i, way, rect_all, begin_place) == 0:
+                big = "小型车"
+            elif judgeArea(i, way, rect_all, begin_place) == 1:
+                big = "中型车"
+            else:
+                big = "大型车"
 
-        if way[i] < 1:
-            p.write("下行,")
-        else:
-            p.write("上行,")
+            if way[i] < 1:
+                go = "下行"
+            else:
+                go = "上行"
 
-        switch_dict = {
-            0: "黑色",
-            1: "白色",
-            2: "黄色",
-            3: "红色",
-            4: "蓝色"
-        }
-        color = read_color(csv_cal)
-        p.write(switch_dict[color] + "\n")
+            switch_dict = {
+                0: "黑色",
+                1: "白色",
+                2: "黄色",
+                3: "红色",
+                4: "蓝色"
+            }
+            color = read_color(csv_cal)
+            p.writerow([count, big, go, switch_dict[color]])
 
-        csv_cal += 1
-
-    # 关闭输出文件
-    p.close()
+            csv_cal += 1
 
 
 def change_car(car, frame, num, going, rect_all, distance_thresh, begin_place, way,
-               color_all, valid, color_bound, pic_out):     # 修改记录数据的部分，颜色、矩形框等的数据
+               color_all, valid, color_bound, pic_out, valid_thresh, car_cal):     # 修改记录数据的部分，颜色、矩形框等的数据
     in_or_out = False
 
     for i in range(num[0]):
@@ -181,7 +184,7 @@ def change_car(car, frame, num, going, rect_all, distance_thresh, begin_place, w
                 way[i] = 0
             else:
                 way[i] = 1
-            color_all[i] = saveColor(frame)
+            color_all[i] = saveColor(frame, valid, pic_out, rect_all, valid_thresh, num, car_cal)
             valid[i] += 1
             going[i] = True
 
@@ -214,7 +217,7 @@ def change_car(car, frame, num, going, rect_all, distance_thresh, begin_place, w
 
 
 def record_cars(dst, frame, bounding_top, num, going, rect_all, distance_thresh, begin_place, way,
-               color_all, valid, color_bound, pic_out):
+               color_all, valid, color_bound, pic_out, valid_thresh, car_cal):
     contours, _ = cv2.findContours(dst, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     boundRect = []
@@ -223,9 +226,9 @@ def record_cars(dst, frame, bounding_top, num, going, rect_all, distance_thresh,
 
     judge = 0
     for i, rect in enumerate(boundRect):
-        if getCenterPoint(rect).y > bounding_top and rect.area() > 3000:
+        if getCenterPoint(rect)[1] > bounding_top and getarea(rect) > 3000:
             change_car(rect, frame, num, going, rect_all, distance_thresh, begin_place, 
-                        way, color_all, valid, color_bound, pic_out)
+                        way, color_all, valid, color_bound, pic_out, valid_thresh, car_cal)
             judge = 1
 
     if judge < 1:
