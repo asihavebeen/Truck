@@ -1,53 +1,8 @@
 import cv2
-
-#define N 8   // 背景块的划分大小
-#define M 4   // 帧差块的划分大小
-#define region 2  // 定义邻域的大小
-#define back_refine 4*255  // 背景修正的阈值，超过认为不是背景
-#define thresh_th 100  // 梯度的阈值
-#define high_th 20  // 与背景差的高阈值
-// #define low_th 20   // 与背景差的低阈值
-#define bounding_top 170   // 检测区域的上边界
-#define bounding_bottom 380   // 检测区域的下边界
-#define distance_thresh 60.0    // 在这个距离以内的中心点被认为是同一辆车
-#define distance_thresh_light 60.0    // 在这个距离以内的中心点被认为是同一个圆
-#define valid_thresh 10    // 持续15帧以上的才计入车
-#define valid_thresh_dark 20    // 持续5帧以上的才计入车,黑夜
-#define dark_thresh 50     // 平均像素灰度达到此值认为是晚上
-#define line_thresh 3     // 小于这个值认为在同一水平线
+import math
 
 
-RNG rng(12345);    // 随机数生成器，全局变量，产生随机颜色
-
-int way[40];    // 记录方向，0为下行，1为上行
-int color_all[40];     // 记录颜色，1-7
-Scalar color_bound[40];      // 框的颜色，画图使用
-Rect rect_all[40];     // 矩形类，记录检测出的矩形框
-Point point_all[100];     // 点类，记录检测出的圆
-float radius_all[100];     // 记录检测出的半径
-float begin_radius[100];     // 记录起始半径，用于判断方向和大小型车
-Rect begin_place[40];     // 记录起始位置，用于判断方向和大小型车
-Point begin_point[100];      // 记录车灯的起始位置，用于判断方向和大小型车
-int valid[100];    // 记录识别是否有效，大于15帧才算有效
-int valid_dark_car[40];     // // 记录识别是否有效，大于5帧才算有效
-int going[40];    // 记录汽车是否已脱离区域
-int going_dark[100];    // 记录车灯是否已脱离区域
-int pic_out[40];      // 记录是否已经输出图像，输出过的不再输出
-int num = 0;      // 记录识别出的总车数，但不全都有效
-int num_dark = 0;      // 记录识别出的黑暗总车数，全都有效
-int car_cal = 0;      // 统计实际有效车数
-int dark = 0;     // 记录是否天黑
-Rect circle_rect[40];     // 由有效车灯形成的矩形
-Rect begin_circle_rect[40];
-
-Mat kernel_33 = getStructuringElement(MORPH_RECT, Size(3, 3), Point(-1, -1));      // 定义结构元
-Mat kernel_55 = getStructuringElement(MORPH_RECT, Size(5, 5), Point(-1, -1));
-Mat kernel_77 = getStructuringElement(MORPH_RECT, Size(7, 7), Point(-1, -1));
-Mat kernel_99 = getStructuringElement(MORPH_RECT, Size(9, 9), Point(-1, -1));
-Mat kernel_1111 = getStructuringElement(MORPH_RECT, Size(11, 11), Point(-1, -1));
-Mat kernel_1515 = getStructuringElement(MORPH_RECT, Size(15, 15), Point(-1, -1));
-
-def cal_grad(srcGray):
+def cal_grad(srcGray, thresh_th):
     gradX = cv2.Sobel(srcGray, cv2.CV_16S, 1, 0, 3)
     gradY = cv2.Sobel(srcGray, cv2.CV_16S, 0, 1, 3)
 
@@ -65,134 +20,6 @@ def is_inside(rect1, rect2):
     return rect1 == (rect1 & rect2)
 
 
-def build_background():
-    count = 0
-    back_capture = cv2.VideoCapture("../video/1.mp4")
-    back_frame = None
-    back_frame_gray = None
-    backgroud = None
-    dsize = (960, 544)
-
-    if not back_capture.isOpened():
-        print("can not open ...")
-        return back_frame
-
-    ret, back_frame = back_capture.read()
-    back_frame = cv2.resize(back_frame, dsize, interpolation=cv2.INTER_AREA)
-    back_frame_gray = cv2.cvtColor(back_frame, cv2.COLOR_BGR2GRAY)
-    backgroud = back_frame_gray.copy()
-
-    while ret:
-        ret, back_frame = back_capture.read()
-        if ret:
-            back_frame = cv2.resize(back_frame, dsize, interpolation=cv2.INTER_AREA)
-            back_frame_gray = cv2.cvtColor(back_frame, cv2.COLOR_BGR2GRAY)
-
-            alpha = float(count + 1) / float(count + 2)
-            beta = 1.0 / float(count + 2)
-            cv2.addWeighted(backgroud, alpha, back_frame_gray, beta, 0, backgroud)
-
-            count += 1
-
-    back_capture.release()
-
-    cv2.imwrite("../Background.jpg", backgroud)
-
-    return backgroud
-
-
-
-def valid_backgroud():
-    valid_capture1 = cv2.VideoCapture("../video/1.mp4")
-    valid_capture2 = cv2.VideoCapture("../video/2.mp4")
-
-    ret, valid_frame1 = valid_capture1.read()
-    ret, valid_frame2 = valid_capture2.read()
-
-    dsize = (960, 544)
-    valid_frame1 = cv2.resize(valid_frame1, dsize, interpolation=cv2.INTER_AREA)
-    valid_frame1 = cv2.GaussianBlur(valid_frame1, (5,5), 3, 3)
-    valid_frame_gray = cv2.cvtColor(valid_frame1, cv2.COLOR_BGR2GRAY)
-
-    valid_frame2 = cv2.resize(valid_frame2, dsize, interpolation=cv2.INTER_AREA)
-    valid_frame2 = cv2.GaussianBlur(valid_frame2, (5,5), 3, 3)
-    valid_backgroud = build_backgroud().copy()
-
-    if not valid_capture1.isOpened():
-        print("can not open ...")
-        return valid_frame1
-
-    rows_real, cols_real = valid_frame1.shape[:2]
-    rows_real //= N
-    cols_real //= N
-
-    back_record = np.zeros((rows_real, cols_real), dtype=np.int32)
-    frame_record = np.full((rows_real, cols_real), 64 * 255, dtype=np.int32)
-    count_record = np.zeros((rows_real, cols_real), dtype=np.int32)
-
-    for i in range(rows_real):
-        for j in range(cols_real):
-            for ii in range(N):
-                for jj in range(N):
-                    back_record[i, j] += temp[N*i + ii, N*j + jj]
-
-    mid = 0
-    count = 1
-    record_i = 0
-    record_j = 0
-
-    while valid_capture1.isOpened():
-        ret, valid_frame1 = valid_capture1.read()
-
-        if not ret:
-            break
-
-        valid_frame1 = cv2.resize(valid_frame1, dsize, interpolation=cv2.INTER_AREA)
-        valid_frame1 = cv2.GaussianBlur(valid_frame1, (5,5), 3, 3)
-        valid_frame_gray = cv2.cvtColor(valid_frame1, cv2.COLOR_BGR2GRAY)
-
-        for i in range(rows_real):
-            for j in range(cols_real):
-                mid = 0
-                record_i = N*i
-                record_j = N*j
-
-                temp = cal_grad(valid_frame_gray).copy()
-
-                for ii in range(N):
-                    for jj in range(N):
-                        mid += temp[record_i + ii, record_j + jj]
-
-                mid = abs(mid - back_record[i, j])
-
-                if mid < back_refine and mid < frame_record[i, j]:
-                    frame_record[i, j] = mid
-                    count_record[i, j] = count
-
-        count += 1
-
-        if count > 70:
-            break
-
-    count = 1
-
-    while valid_capture2.isOpened():
-        ret, valid_frame2 = valid_capture2.read()
-
-        if not ret:
-            break
-
-        valid_frame2 = cv2.resize(valid_frame2, dsize, interpolation=cv2.INTER_AREA)
-        valid_frame2 = cv2.GaussianBlur(valid_frame2, (5,5), 3, 3)
-        valid_frame_gray = cv2.cvtColor(valid_frame2, cv2.COLOR_BGR2GRAY)
-
-        for i in range(rows_real):
-            for j in range(cols_real):
-                if count_record[i, j] == count:
-                    for ii in range(N):
-
-
-
 def getCenterPoint(rect):
     cpt = ()
     cpt_x = rect.x + round(rect.width/2.0)
@@ -200,22 +27,17 @@ def getCenterPoint(rect):
     cpt = (cpt_x, cpt_y)
     return cpt
 
+
 def getDistance(pointO, pointA):
     distance = math.sqrt(math.pow((pointO[0] - pointA[0]), 2) + math.pow((pointO[1] - pointA[1]), 2))
     return distance
 
-def find_rec(frame):
+
+def find_rec(frame, num, valid, valid_thresh, going, rect_all, color_bound):
     drawing = frame.copy()
     for i in range(num):
         if(valid[i] > valid_thresh and going[i] > 0):
             cv2.rectangle(drawing, rect_all[i].tl(), rect_all[i].br(), color_bound[i], 2, 8, 0)
-    return drawing
-
-def find_rec_dark(frame):
-    drawing = frame.copy()
-    for i in range(num_dark):
-        if(valid_dark_car[i] > valid_thresh_dark and going[i] > 0):
-            cv2.rectangle(drawing, circle_rect[i].tl(), circle_rect[i].br(), color_bound[i], 2, 8, 0)
     return drawing
 
 
@@ -345,10 +167,10 @@ def cout_csv():
     p.close()
 
 
-def change_car(car, frame):     # 修改记录数据的部分，颜色、矩形框等的数据
-    global num, rect_all, begin_place, way, color_all, valid, color_bound, going, pic_out
-
+def change_car(car, frame, num, going, rect_all, distance_thresh, begin_place, way,
+               color_all, valid, color_bound, pic_out):     # 修改记录数据的部分，颜色、矩形框等的数据
     in_or_out = False
+
     for i in range(num):
         going[i] = False
         if getDistance(getCenterPoint(car), getCenterPoint(rect_all[i])) < distance_thresh:    # 距离在范围内就更新，也就是同一辆车
