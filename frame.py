@@ -4,14 +4,14 @@ import copy
 import another
 
 
-#parameter
+'''设定参数'''
 bounding_top = 170        #检测区域的上边界
 bounding_bottom = 380     #检测区域的下边界
 distance_thresh = 60.0    #在这个距离以内的中心点被认为是同一辆车
 valid_thresh = 10         #持续15帧以上的才计入车
 
 
-#launch
+'''运行记录'''
 way = []    #记录方向，0为下行，1为上行
 color_all = []     #记录颜色，1-7
 color_bound = []      #框的颜色，画图使用
@@ -20,10 +20,11 @@ begin_place = []     #记录起始位置，用于判断方向和大小型车
 valid = []    #记录识别是否有效，大于15帧才算有效
 going = []    #记录汽车是否已脱离区域
 pic_out = []      #记录是否已经输出图像，输出过的不再输出
-num = 0      #记录识别出的总车数，但不全都有效
-car_cal = 0;      #统计实际有效车数
+num = [0]      #记录识别出的总车数，但不全都有效
+car_cal = [0];      #统计实际有效车数
 
 
+'''开始运行'''
 cap = cv2.VideoCapture(0)
 ret, img = cap.read()
 # img = cv2.resize(img, (640, 360))
@@ -32,6 +33,7 @@ previmg = img    #第一帧
 previmg = cv2.cvtColor(previmg, cv2.COLOR_BGR2GRAY)
 previmg = cv2.GaussianBlur(previmg, (3, 3), 0)
 height, width = img.shape[:2]
+
 
 '''保存视频'''
 # fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -79,9 +81,10 @@ while cap.isOpened():
         result = cv2.erode(flood, kernel, iterations=1)
 
         '''矩形框'''
-        another.record_cars(dst, frame, going, num, bounding_top)
-        see = another.find_rec(frame, num, valid, valid_thresh, going, rect_all, color_bound)
-        another.cout_csv(num, valid, valid_thresh, way)
+        another.record_cars(result, img, bounding_top, num, going, rect_all, distance_thresh, 
+                            begin_place, way, color_all, valid, color_bound, pic_out)
+        see = another.find_rec(img, num, valid, valid_thresh, going, rect_all, color_bound)
+        another.cout_csv(num, valid, valid_thresh, way, rect_all, begin_place)
 
         # out_result.write(img)
 
@@ -89,6 +92,7 @@ while cap.isOpened():
         cv2.imshow('origin', img)
         cv2.imshow('process', process)
         cv2.imshow('result', result)
+        cv2.imshow('see', see)
         previmg = nextimg   #帧差法 背景变化
         k = cv2.waitKey(25) & 0xff
         if k == 27:

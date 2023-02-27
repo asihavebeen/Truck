@@ -42,10 +42,8 @@ def find_rec(frame, num, valid, valid_thresh, going, rect_all, color_bound):
     return drawing
 
 
-def judgeColor(frame, valid, pic_out, rect_all, valid_thresh, num):
-    global car_cal
-    clone_one = None
-    for i in range(num):
+def saveColor(frame, valid, pic_out, rect_all, valid_thresh, num, car_cal):
+    for i in range(num[0]):
         destiny = "./saved/"
         count = str(car_cal)
         destiny_back = ".jpg"
@@ -57,7 +55,7 @@ def judgeColor(frame, valid, pic_out, rect_all, valid_thresh, num):
             clone_one = frame[rect_all[i][1]:rect_all[i][1]+rect_all[i][3], rect_all[i][0]:rect_all[i][0]+rect_all[i][2]]
             cv2.imwrite(destiny, clone_one)
 
-            car_cal += 1
+            car_cal[0] += 1
             pic_out[i] = 1
     
     return 0
@@ -83,7 +81,8 @@ def judgeArea(i, way, rect_all, begin_place):
 
 
 def read_color(place):
-    global color_five
+    color_five = [0, 0, 0, 0, 0]
+    
     destiny = "../saved/"
     count = str(place)
     destiny_back = ".jpg"
@@ -182,7 +181,7 @@ def change_car(car, frame, num, going, rect_all, distance_thresh, begin_place, w
                 way[i] = 0
             else:
                 way[i] = 1
-            color_all[i] = judgeColor(frame)
+            color_all[i] = saveColor(frame)
             valid[i] += 1
             going[i] = True
 
@@ -225,7 +224,8 @@ def record_cars(dst, frame, bounding_top, num, going, rect_all, distance_thresh,
     judge = 0
     for i, rect in enumerate(boundRect):
         if getCenterPoint(rect).y > bounding_top and rect.area() > 3000:
-            change_car(rect, frame, num, going, rect_all, distance_thresh, begin_place, way, color_all, valid, color_bound, pic_out)
+            change_car(rect, frame, num, going, rect_all, distance_thresh, begin_place, 
+                        way, color_all, valid, color_bound, pic_out)
             judge = 1
 
     if judge < 1:
