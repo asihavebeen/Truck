@@ -24,7 +24,7 @@ num = 0      #记录识别出的总车数，但不全都有效
 car_cal = 0;      #统计实际有效车数
 
 
-cap = cv2.VideoCapture('./video/1.mp4')
+cap = cv2.VideoCapture(0)
 ret, img = cap.read()
 # img = cv2.resize(img, (640, 360))
 # img = img[100:, :]
@@ -79,12 +79,9 @@ while cap.isOpened():
         result = cv2.erode(flood, kernel, iterations=1)
 
         '''矩形框'''
-        contours, _ = cv2.findContours(flood, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        for cont in contours:
-            # 外接矩形
-            x, y, w, h = cv2.boundingRect(cont)
-            # 在原图上画出预测的矩形
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+        another.record_cars(dst, frame, going, num, bounding_top)
+        see = another.find_rec(frame, num, valid, valid_thresh, going, rect_all, color_bound)
+        another.cout_csv(num, valid, valid_thresh, way)
 
         # out_result.write(img)
 
