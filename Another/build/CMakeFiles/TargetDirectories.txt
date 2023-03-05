@@ -1,3 +1,0 @@
-/home/braval/Another/build/CMakeFiles/rebuild_cache.dir
-/home/braval/Another/build/CMakeFiles/another.dir
-/home/braval/Another/build/CMakeFiles/edit_cache.dir
