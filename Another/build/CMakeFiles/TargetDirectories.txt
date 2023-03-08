@@ -1,0 +1,3 @@
+/home/braval/Truck/Another/build/CMakeFiles/another.dir
+/home/braval/Truck/Another/build/CMakeFiles/edit_cache.dir
+/home/braval/Truck/Another/build/CMakeFiles/rebuild_cache.dir

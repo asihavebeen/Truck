@@ -1043,7 +1043,7 @@ int main()
     backgroud_truth = build_backgroud().clone();
     std::cout << "BackGround Done!" << endl;
 
-    frame = main_capture.open("../video/1.mp4");
+    frame = main_capture.open("../video/33.mp4");
     if(!main_capture.isOpened())
     {
         printf("can not open ...\n");

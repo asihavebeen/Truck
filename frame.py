@@ -25,7 +25,7 @@ car_cal = [0];      #统计实际有效车数
 
 
 '''开始运行'''
-cap = cv2.VideoCapture('./video/02.mp4')
+cap = cv2.VideoCapture('./video/01.mp4')
 # cap = cv2.VideoCapture(0)
 ret, img = cap.read()
 # img = cv2.resize(img, (640, 360))
